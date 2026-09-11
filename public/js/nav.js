@@ -1,4 +1,4 @@
-function renderNav(active) {
+async function renderNav(active) {
   const pages = [
     { href: '/index.html', label: 'Inicio', key: 'inicio' },
     { href: '/equipos.html', label: 'Equipos', key: 'equipos' },
@@ -13,6 +13,14 @@ function renderNav(active) {
     )
     .join('');
 
+  let localMode = false;
+  try {
+    const config = await fetchJSON('/api/config');
+    localMode = Boolean(config.localMode);
+  } catch (err) {
+    localMode = false; // si no se puede confirmar, no se muestra el boton Salir por seguridad
+  }
+
   const nav = document.createElement('div');
   nav.className = 'navbar';
   nav.innerHTML = `
@@ -21,7 +29,7 @@ function renderNav(active) {
       <div class="nav-links">${links}</div>
       <div class="nav-actions">
         <button class="nav-btn btn-refresh" id="btn-refresh">Actualizar resultados</button>
-        <button class="nav-btn btn-exit" id="btn-exit">Salir</button>
+        ${localMode ? '<button class="nav-btn btn-exit" id="btn-exit">Salir</button>' : ''}
       </div>
     </div>
   `;
@@ -50,20 +58,28 @@ function renderNav(active) {
     }
   });
 
-  document.getElementById('btn-exit').addEventListener('click', async () => {
-    const confirmed = confirm(
-      'Esto apagara el servidor de la app para TODAS las personas conectadas en este momento. ¿Deseas continuar?'
-    );
-    if (!confirmed) return;
-    try {
-      await fetchJSON('/api/exit', { method: 'POST' });
-    } catch (err) {
-      // el servidor se apaga justo despues de responder; un error de red aqui es esperado
-    }
-    document.body.innerHTML =
-      '<div style="padding:40px;text-align:center;font-family:sans-serif;color:#eef1fb;background:#0a1128;min-height:100vh;">' +
-      '<h2>Servidor apagado</h2><p>La aplicacion ha cerrado sus procesos. Para volver a usarla, alguien debe iniciar el servidor de nuevo.</p></div>';
-  });
+  if (localMode) {
+    document.getElementById('btn-exit').addEventListener('click', async () => {
+      const confirmed = confirm(
+        'Esto apagara el servidor que corre en esta computadora. ¿Deseas continuar?'
+      );
+      if (!confirmed) return;
+      try {
+        await fetchJSON('/api/exit', { method: 'POST' });
+      } catch (err) {
+        // el servidor se apaga justo despues de responder; un error de red aqui es esperado
+      }
+      document.body.innerHTML =
+        '<div style="padding:40px;text-align:center;font-family:sans-serif;color:#eef1fb;background:#0a1128;min-height:100vh;">' +
+        '<h2>Servidor apagado</h2><p>La aplicacion cerro el proceso en esta computadora. Para volver a usarla, alguien debe iniciar el servidor de nuevo.</p></div>';
+    });
+
+    // Aviso periodico al servidor local de que sigue habiendo una pestana abierta;
+    // si dejan de llegar (se cerraron todas las pestanas), el servidor se apaga solo.
+    const sendHeartbeat = () => fetch('/api/heartbeat', { method: 'POST' }).catch(() => {});
+    sendHeartbeat();
+    setInterval(sendHeartbeat, 5000);
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {

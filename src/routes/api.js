@@ -2,7 +2,7 @@ const express = require('express');
 const cache = require('../services/cache');
 const footballData = require('../services/footballData');
 const wikipedia = require('../services/wikipedia');
-const { REFRESH_COOLDOWN_MS } = require('../config');
+const { REFRESH_COOLDOWN_MS, IS_SHARED_DEPLOYMENT } = require('../config');
 
 const router = express.Router();
 
@@ -152,6 +152,15 @@ router.post('/refresh', async (req, res) => {
 });
 
 router.post('/exit', (req, res) => {
+  if (IS_SHARED_DEPLOYMENT) {
+    // Esto corre en el hosting compartido: apagarlo afectaria a todas las
+    // personas conectadas, asi que el boton Salir esta deshabilitado aqui.
+    return res.status(403).json({
+      ok: false,
+      error: 'disabled',
+      message: 'El boton Salir esta deshabilitado en este servicio compartido para no afectar a otras personas conectadas.',
+    });
+  }
   res.json({ ok: true, message: 'Apagando el servidor...' });
   setTimeout(() => process.exit(0), 300);
 });
