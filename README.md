@@ -53,7 +53,8 @@ Para que cualquier persona la use desde cualquier red con una sola liga (URL):
 ## Botones de la app
 
 - **Actualizar resultados**: fuerza una actualizacion de la tabla, resultados y proximos partidos (con un limite de una vez por minuto para cuidar la cuota gratuita de la API).
-- **Salir**: apaga el proceso del servidor. Como la app es compartida, esto la apaga **para todas las personas conectadas**; pide confirmacion antes de hacerlo.
+- **Salir**: solo aparece cuando corres la app en tu propia computadora (`npm start`). Apaga el proceso local. **No aparece ni funciona en el servicio compartido de Render** (la app detecta automaticamente si esta corriendo ahi mediante la variable `RENDER` que Render define sola) para no afectar a otras personas conectadas.
+- **Apagado automatico por inactividad (solo local)**: cuando corres la app en tu computadora, cada pestana del navegador le avisa al servidor cada 5 segundos que sigue abierta. Si cierras todas las pestanas (o nunca abriste ninguna en el primer minuto), el servidor se apaga solo para no quedar consumiendo recursos en segundo plano.
 
 ## Limitaciones conocidas
 
