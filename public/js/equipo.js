@@ -70,7 +70,7 @@ function statMatchRow(m, filter) {
   if (filter === 'goalsFor') extra = `<div class="match-meta">Goles de este equipo en el partido: <strong>${m.goalsFor}</strong></div>`;
   if (filter === 'goalsAgainst') extra = `<div class="match-meta">Goles recibidos en el partido: <strong>${m.goalsAgainst}</strong></div>`;
   return `
-    <div class="match-row">
+    <div class="match-row" onclick="openMatchModal(${m.id})">
       <div class="match-teams">
         <div class="match-team"><img src="${m.home.logo}" onerror="teamLogoFallback(event)" alt="" /> ${m.home.name}</div>
         <div class="match-score">${m.goalsHome} - ${m.goalsAway}</div>
@@ -121,7 +121,7 @@ function renderUpcoming(matches) {
   container.innerHTML = matches
     .map(
       (m) => `
-      <div class="match-row">
+      <div class="match-row" onclick="openMatchModal(${m.id})">
         <div class="match-teams">
           <div class="match-team"><img src="${m.home.logo}" onerror="teamLogoFallback(event)" alt="" /> ${m.home.name}</div>
           <div class="match-score">vs</div>
@@ -140,28 +140,45 @@ function calcAge(dateOfBirth) {
   return Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
 }
 
-function openPlayerModal(player) {
-  const modalRoot = document.getElementById('player-modal');
-  modalRoot.innerHTML = `
-    <div class="modal-overlay" id="modal-overlay">
-      <div class="modal-card">
-        <button class="modal-close" id="modal-close" aria-label="Cerrar">&times;</button>
-        <h2>${player.name}</h2>
-        <div class="meta" style="color:var(--text-dim);margin-bottom:10px;">${player.position || 'Posicion no especificada'}</div>
-        <div class="modal-row"><span class="label">Nacionalidad</span><span>${player.nationality || '-'}</span></div>
-        <div class="modal-row"><span class="label">Fecha de nacimiento</span><span>${player.dateOfBirth || '-'}</span></div>
-        <div class="modal-row"><span class="label">Edad</span><span>${calcAge(player.dateOfBirth)}</span></div>
-        <p class="search-hint" style="margin-top:14px;">Las estadisticas de la temporada actual de este jugador (goles, asistencias, tarjetas) no estan disponibles en el plan gratuito de la fuente de datos usada por esta app.</p>
-      </div>
-    </div>`;
-  document.getElementById('modal-close').addEventListener('click', closePlayerModal);
-  document.getElementById('modal-overlay').addEventListener('click', (e) => {
-    if (e.target.id === 'modal-overlay') closePlayerModal();
-  });
+let playerModalToken = 0;
+
+function playerModalHtml(player, extra) {
+  const photo = extra?.photo
+    ? `<img class="modal-photo" src="${extra.photo}" onerror="teamLogoFallback(event)" alt="${player.name}" />`
+    : '<img class="modal-photo" src="/img/ball-placeholder.svg" alt="" />';
+  return `
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    ${photo}
+    <h2>${player.name}</h2>
+    <div class="meta" style="color:var(--text-dim);margin-bottom:10px;">
+      ${player.position || 'Posicion no especificada'}${extra?.shirtNumber ? ' &middot; Dorsal #' + extra.shirtNumber : ''}
+    </div>
+    <div class="modal-row"><span class="label">Nacionalidad</span><span>${player.nationality || '-'}</span></div>
+    <div class="modal-row"><span class="label">Fecha de nacimiento</span><span>${player.dateOfBirth || '-'}</span></div>
+    <div class="modal-row"><span class="label">Edad</span><span>${calcAge(player.dateOfBirth)}</span></div>
+    ${
+      extra === 'loading'
+        ? '<p class="search-hint" style="margin-top:14px;">Buscando foto y numero de camiseta en Wikipedia...</p>'
+        : !extra?.shirtNumber
+        ? '<p class="search-hint" style="margin-top:14px;">No se encontro el numero de camiseta en Wikipedia para este jugador.</p>'
+        : ''
+    }
+    <p class="search-hint" style="margin-top:6px;">Las estadisticas de esta temporada de este jugador (goles, asistencias, tarjetas) no estan disponibles en el plan gratuito de la fuente de datos usada por esta app.</p>
+  `;
 }
 
-function closePlayerModal() {
-  document.getElementById('player-modal').innerHTML = '';
+async function openPlayerModal(player) {
+  const token = ++playerModalToken;
+  openModal(playerModalHtml(player, 'loading'));
+  const stillRelevant = () => token === playerModalToken && document.getElementById('shared-modal-overlay');
+  try {
+    const result = await fetchJSON(`/api/players/${encodeURIComponent(player.name)}/wiki`);
+    if (!stillRelevant()) return; // el usuario ya abrio otra ficha o cerro el modal
+    openModal(playerModalHtml(player, result.data || null));
+  } catch (err) {
+    if (!stillRelevant()) return;
+    openModal(playerModalHtml(player, null));
+  }
 }
 
 async function loadPlayers(teamId) {

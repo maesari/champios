@@ -110,6 +110,17 @@ function mapMatch(m) {
   };
 }
 
+async function getMatchDetail(matchId) {
+  const m = await apiGet(`/matches/${matchId}`);
+  return {
+    ...mapMatch(m),
+    halfTimeHome: m.score?.halfTime?.home ?? null,
+    halfTimeAway: m.score?.halfTime?.away ?? null,
+    referee: m.referees?.[0]?.name || null,
+    stage: m.stage || null,
+  };
+}
+
 async function getStandings() {
   const data = await apiGet(`/competitions/${COMPETITION_CODE}/standings`);
   const table = data.standings?.[0]?.table || [];
@@ -206,4 +217,5 @@ module.exports = {
   getSquad,
   getTeamFixtures,
   getTeamResults,
+  getMatchDetail,
 };

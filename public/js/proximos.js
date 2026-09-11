@@ -1,12 +1,12 @@
 function upcomingRow(m) {
   return `
-    <div class="match-row" onclick="location.href='/equipo.html?id=${m.home.id}'">
+    <div class="match-row" onclick="openMatchModal(${m.id})">
       <div class="match-teams">
         <div class="match-team"><img src="${m.home.logo}" onerror="teamLogoFallback(event)" alt="" /> ${m.home.name}</div>
         <div class="match-score">vs</div>
         <div class="match-team"><img src="${m.away.logo}" onerror="teamLogoFallback(event)" alt="" /> ${m.away.name}</div>
       </div>
-      <div class="match-meta">${formatDate(m.date)}<br/>${m.venue}${m.city ? ', ' + m.city : ''}${m.round ? '<br/>' + m.round : ''}</div>
+      <div class="match-meta">${formatDate(m.date)}<br/>Estadio: ${m.venue}${m.city ? ', ' + m.city : ''}${m.round ? '<br/>' + m.round : ''}</div>
     </div>`;
 }
 

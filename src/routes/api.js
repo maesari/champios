@@ -1,6 +1,7 @@
 const express = require('express');
 const cache = require('../services/cache');
 const footballData = require('../services/footballData');
+const wikipedia = require('../services/wikipedia');
 const { REFRESH_COOLDOWN_MS } = require('../config');
 
 const router = express.Router();
@@ -100,6 +101,28 @@ router.get('/teams/:id/players', async (req, res) => {
     sendResult(res, result, { statsAvailable: false });
   } catch (err) {
     sendError(res, err);
+  }
+});
+
+router.get('/matches/:id', async (req, res) => {
+  try {
+    const result = await cache.getOrFetch(`match:${req.params.id}`, () => footballData.getMatchDetail(req.params.id));
+    sendResult(res, result);
+  } catch (err) {
+    sendError(res, err);
+  }
+});
+
+router.get('/players/:name/wiki', async (req, res) => {
+  try {
+    const result = await cache.getOrFetch(`wiki:${req.params.name}`, () => wikipedia.getPlayerInfo(req.params.name));
+    if (!result.data) {
+      return res.json({ ok: true, data: null });
+    }
+    sendResult(res, result);
+  } catch (err) {
+    // La info de Wikipedia es un extra; si falla no debe tumbar la ficha del jugador.
+    res.json({ ok: true, data: null });
   }
 });
 
