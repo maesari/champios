@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: champios
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: FOOTBALL_DATA_TOKEN
+        sync: false
