@@ -1,3 +1,6 @@
+let teamResultsCache = [];
+let teamPlayersCache = [];
+
 function getTeamId() {
   const params = new URLSearchParams(location.search);
   return params.get('id');
@@ -33,14 +36,79 @@ function renderStats(stats) {
   }
   container.innerHTML = `
     <div class="stat-grid">
-      <div class="stat-box"><div class="value">${stats.played}</div><div class="label">Jugados</div></div>
-      <div class="stat-box"><div class="value">${stats.wins}</div><div class="label">Ganados</div></div>
-      <div class="stat-box"><div class="value">${stats.draws}</div><div class="label">Empatados</div></div>
-      <div class="stat-box"><div class="value">${stats.loses}</div><div class="label">Perdidos</div></div>
-      <div class="stat-box"><div class="value">${stats.goalsFor}</div><div class="label">Goles a favor</div></div>
-      <div class="stat-box"><div class="value">${stats.goalsAgainst}</div><div class="label">Goles en contra</div></div>
+      <button class="stat-box" data-filter="played"><div class="value">${stats.played}</div><div class="label">Jugados</div></button>
+      <button class="stat-box" data-filter="win"><div class="value">${stats.wins}</div><div class="label">Ganados</div></button>
+      <button class="stat-box" data-filter="draw"><div class="value">${stats.draws}</div><div class="label">Empatados</div></button>
+      <button class="stat-box" data-filter="loss"><div class="value">${stats.loses}</div><div class="label">Perdidos</div></button>
+      <button class="stat-box" data-filter="goalsFor"><div class="value">${stats.goalsFor}</div><div class="label">Goles a favor</div></button>
+      <button class="stat-box" data-filter="goalsAgainst"><div class="value">${stats.goalsAgainst}</div><div class="label">Goles en contra</div></button>
     </div>
     ${stats.form ? `<p class="search-hint">Forma reciente: ${stats.form}</p>` : ''}
+    <div id="stat-detail" class="stat-detail"></div>
+  `;
+
+  container.querySelectorAll('.stat-box').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const alreadyActive = btn.classList.contains('active');
+      container.querySelectorAll('.stat-box').forEach((b) => b.classList.remove('active'));
+      const detail = document.getElementById('stat-detail');
+      if (alreadyActive) {
+        detail.innerHTML = '';
+        return;
+      }
+      btn.classList.add('active');
+      renderStatDetail(btn.dataset.filter);
+    });
+  });
+}
+
+function statMatchRow(m, filter) {
+  const teamId = getTeamId();
+  const isHome = String(m.home.id) === String(teamId);
+  const opponent = isHome ? m.away : m.home;
+  let extra = '';
+  if (filter === 'goalsFor') extra = `<div class="match-meta">Goles de este equipo en el partido: <strong>${m.goalsFor}</strong></div>`;
+  if (filter === 'goalsAgainst') extra = `<div class="match-meta">Goles recibidos en el partido: <strong>${m.goalsAgainst}</strong></div>`;
+  return `
+    <div class="match-row">
+      <div class="match-teams">
+        <div class="match-team"><img src="${m.home.logo}" onerror="teamLogoFallback(event)" alt="" /> ${m.home.name}</div>
+        <div class="match-score">${m.goalsHome} - ${m.goalsAway}</div>
+        <div class="match-team"><img src="${m.away.logo}" onerror="teamLogoFallback(event)" alt="" /> ${m.away.name}</div>
+      </div>
+      <div class="match-meta">${formatDate(m.date)}<br/>vs ${opponent.name}</div>
+      ${extra}
+    </div>`;
+}
+
+function renderStatDetail(filter) {
+  const detail = document.getElementById('stat-detail');
+  let matches = teamResultsCache;
+  let title = 'Todos los partidos jugados';
+  if (filter === 'win') {
+    matches = teamResultsCache.filter((m) => m.outcome === 'win');
+    title = 'Partidos ganados';
+  } else if (filter === 'draw') {
+    matches = teamResultsCache.filter((m) => m.outcome === 'draw');
+    title = 'Partidos empatados';
+  } else if (filter === 'loss') {
+    matches = teamResultsCache.filter((m) => m.outcome === 'loss');
+    title = 'Partidos perdidos';
+  } else if (filter === 'goalsFor') {
+    matches = teamResultsCache.filter((m) => m.goalsFor > 0);
+    title = 'Partidos en los que anoto goles (el desglose por jugador no esta disponible en el plan gratuito de datos)';
+  } else if (filter === 'goalsAgainst') {
+    matches = teamResultsCache.filter((m) => m.goalsAgainst > 0);
+    title = 'Partidos en los que recibio goles (el desglose por jugador no esta disponible en el plan gratuito de datos)';
+  }
+
+  if (!matches.length) {
+    detail.innerHTML = `<div class="stat-detail-title">${title}</div><div class="loading">No hay partidos en esta categoria todavia.</div>`;
+    return;
+  }
+  detail.innerHTML = `
+    <div class="stat-detail-title">${title}</div>
+    <div class="match-list">${matches.map((m) => statMatchRow(m, filter)).join('')}</div>
   `;
 }
 
@@ -59,7 +127,7 @@ function renderUpcoming(matches) {
           <div class="match-score">vs</div>
           <div class="match-team"><img src="${m.away.logo}" onerror="teamLogoFallback(event)" alt="" /> ${m.away.name}</div>
         </div>
-        <div class="match-meta">${formatDate(m.date)}<br/>${m.venue}${m.city ? ', ' + m.city : ''}</div>
+        <div class="match-meta">${formatDate(m.date)}<br/>Estadio: ${m.venue}${m.city ? ', ' + m.city : ''}</div>
       </div>`
     )
     .join('');
@@ -72,20 +140,45 @@ function calcAge(dateOfBirth) {
   return Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
 }
 
+function openPlayerModal(player) {
+  const modalRoot = document.getElementById('player-modal');
+  modalRoot.innerHTML = `
+    <div class="modal-overlay" id="modal-overlay">
+      <div class="modal-card">
+        <button class="modal-close" id="modal-close" aria-label="Cerrar">&times;</button>
+        <h2>${player.name}</h2>
+        <div class="meta" style="color:var(--text-dim);margin-bottom:10px;">${player.position || 'Posicion no especificada'}</div>
+        <div class="modal-row"><span class="label">Nacionalidad</span><span>${player.nationality || '-'}</span></div>
+        <div class="modal-row"><span class="label">Fecha de nacimiento</span><span>${player.dateOfBirth || '-'}</span></div>
+        <div class="modal-row"><span class="label">Edad</span><span>${calcAge(player.dateOfBirth)}</span></div>
+        <p class="search-hint" style="margin-top:14px;">Las estadisticas de la temporada actual de este jugador (goles, asistencias, tarjetas) no estan disponibles en el plan gratuito de la fuente de datos usada por esta app.</p>
+      </div>
+    </div>`;
+  document.getElementById('modal-close').addEventListener('click', closePlayerModal);
+  document.getElementById('modal-overlay').addEventListener('click', (e) => {
+    if (e.target.id === 'modal-overlay') closePlayerModal();
+  });
+}
+
+function closePlayerModal() {
+  document.getElementById('player-modal').innerHTML = '';
+}
+
 async function loadPlayers(teamId) {
   const container = document.getElementById('team-players');
   container.innerHTML = '<div class="loading">Cargando plantilla...</div>';
   try {
     const result = await fetchJSON(`/api/teams/${teamId}/players`);
     const players = result.data;
+    teamPlayersCache = players;
     if (!players.length) {
       container.innerHTML = '<div class="loading">No hay informacion de la plantilla disponible todavia para este equipo.</div>';
       return;
     }
     const rows = players
       .map(
-        (p) => `
-        <tr>
+        (p, idx) => `
+        <tr class="player-row" data-idx="${idx}">
           <td class="team-cell">${p.name}</td>
           <td>${p.position || '-'}</td>
           <td>${p.nationality || '-'}</td>
@@ -105,6 +198,9 @@ async function loadPlayers(teamId) {
         </thead>
         <tbody>${rows}</tbody>
       </table>`;
+    container.querySelectorAll('.player-row').forEach((row) => {
+      row.addEventListener('click', () => openPlayerModal(teamPlayersCache[Number(row.dataset.idx)]));
+    });
     if (result.warning) showBanner(document.querySelector('.container'), result.warning, 'warning');
   } catch (err) {
     container.innerHTML = '';
@@ -121,7 +217,8 @@ async function loadTeam() {
   }
   try {
     const result = await fetchJSON(`/api/teams/${teamId}`);
-    const { team, standing, statistics, upcoming } = result.data;
+    const { team, standing, statistics, upcoming, results } = result.data;
+    teamResultsCache = results || [];
     renderHeader(team, standing);
     renderStats(statistics);
     renderUpcoming(upcoming);

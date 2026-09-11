@@ -221,7 +221,59 @@ td.rank { font-weight: 700; color: var(--accent-2); }
   border-radius: var(--radius);
   padding: 10px;
   text-align: center;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
 }
+.stat-box:hover { border-color: var(--accent); }
+.stat-box.active { border-color: var(--accent-2); background: #1d2d5a; }
+
+.stat-detail {
+  margin-top: 14px;
+}
+.stat-detail-title {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+tbody tr.player-row:hover { background: var(--bg-card-alt); cursor: pointer; }
+
+/* ---------- Modal ---------- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 50;
+}
+.modal-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  max-width: 420px;
+  width: 100%;
+  position: relative;
+}
+.modal-close {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+.modal-card h2 { margin: 0 0 4px; }
+.modal-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+.modal-row:last-child { border-bottom: none; }
+.modal-row .label { color: var(--text-dim); }
 .stat-box .value { font-size: 1.3rem; font-weight: 800; }
 .stat-box .label { font-size: 0.72rem; color: var(--text-dim); }
 

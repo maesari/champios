@@ -177,6 +177,27 @@ async function getTeamFixtures(teamId, limit = 5) {
   return matches.slice(0, limit);
 }
 
+async function getTeamResults(teamId, limit = 20) {
+  const data = await apiGet(`/teams/${teamId}/matches`, {
+    competitions: COMPETITION_CODE,
+    status: 'FINISHED',
+    limit,
+  });
+  const matches = (data.matches || []).map(mapMatch).sort((a, b) => new Date(b.date) - new Date(a.date));
+  // Se agrega el resultado (G/E/P) y los goles a favor/en contra desde la
+  // perspectiva de este equipo, para poder desglosar las estadisticas del
+  // equipo sin necesitar goleadores (que la fuente gratuita no entrega).
+  return matches.map((m) => {
+    const isHome = String(m.home.id) === String(teamId);
+    const goalsFor = isHome ? m.goalsHome : m.goalsAway;
+    const goalsAgainst = isHome ? m.goalsAway : m.goalsHome;
+    let outcome = 'draw';
+    if (goalsFor > goalsAgainst) outcome = 'win';
+    else if (goalsFor < goalsAgainst) outcome = 'loss';
+    return { ...m, outcome, goalsFor, goalsAgainst };
+  });
+}
+
 module.exports = {
   getStandings,
   getResults,
@@ -184,4 +205,5 @@ module.exports = {
   getTeams,
   getSquad,
   getTeamFixtures,
+  getTeamResults,
 };

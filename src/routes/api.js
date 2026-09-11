@@ -50,10 +50,11 @@ router.get('/teams', route('teams', () => footballData.getTeams()));
 router.get('/teams/:id', async (req, res) => {
   const teamId = req.params.id;
   try {
-    const [teams, standings, fixtures] = await Promise.all([
+    const [teams, standings, fixtures, results] = await Promise.all([
       cache.getOrFetch('teams', () => footballData.getTeams()),
       cache.getOrFetch('standings', () => footballData.getStandings()),
       cache.getOrFetch(`team-fixtures:${teamId}`, () => footballData.getTeamFixtures(teamId)),
+      cache.getOrFetch(`team-results:${teamId}`, () => footballData.getTeamResults(teamId)),
     ]);
     const team = teams.data.find((t) => String(t.id) === String(teamId));
     if (!team) {
@@ -73,11 +74,11 @@ router.get('/teams/:id', async (req, res) => {
           form: standingRow.form,
         }
       : null;
-    const stale = teams.stale || standings.stale || fixtures.stale;
-    const warning = [teams, standings, fixtures].find((r) => r.stale)?.error?.message || null;
+    const stale = teams.stale || standings.stale || fixtures.stale || results.stale;
+    const warning = [teams, standings, fixtures, results].find((r) => r.stale)?.error?.message || null;
     res.json({
       ok: true,
-      data: { team, standing: standingRow, statistics, upcoming: fixtures.data },
+      data: { team, standing: standingRow, statistics, upcoming: fixtures.data, results: results.data },
       stale,
       warning,
     });
